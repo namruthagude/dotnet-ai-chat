@@ -63,6 +63,35 @@ while (true)
         WriteColored(text, ConsoleColor.DarkYellow);
         text = $"\n [Sessions totals - Input : {totalInput}, Output: {totalOutput}]\n";
         WriteColored(text, ConsoleColor.DarkYellow);
+
+        //Saving User and AI Messages
+        var UserMessage = new Message()
+        {
+            ConversationId = conversation.Id,
+            Role = "user",
+            Content = prompt!
+        };
+
+        var AIMessage = new Message()
+        {
+            ConversationId = conversation.Id,
+            Role = "AI",
+            ModelUsed = "openai/gpt-4.1-mini",
+            Content = chatResponse.ToString()!,
+            InputTokens = chatResponse.Usage?.InputTokenCount is long i ? (int)i : null,
+            OutputTokens = chatResponse.Usage?.OutputTokenCount is long j ? (int)j : null,
+        };
+
+        db.messages.AddRange(UserMessage, AIMessage);
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error while saving messages in database" + ex.Message);
+        }
+        
     }
     catch (Exception exp)
     {
