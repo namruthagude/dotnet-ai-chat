@@ -1,0 +1,50 @@
+﻿@page "/chat"
+@rendermode InteractiveServer
+@using DotnetAiChat.Core.Models
+@using DotnetAiChat.Core.Data
+@using Microsoft.Extensions.AI
+@using Microsoft.EntityFrameworkCore
+@inject IChatClient ChatClient
+@inject ChatDbContext Db
+<h3>AI CHat</h3>
+
+<div>
+    @foreach (var msg in messages)
+    {
+        <p><strong>@msg.Role:</strong> @msg.Content</p>
+    }
+</div>
+<input @bind = "userInput" placeholder = "type your message here" />
+<button @onclick = "SendMessage">Send</button>
+@code{
+    private List<Message> messages = new();
+    private string userInput = string.Empty;
+
+    private async Task SendMessage(){
+        //Logic
+        if (string.IsNullOrEmpty(userInput))
+            return;
+        var userMessage = new Message()
+            {
+                Role = "user",
+                Content = userInput
+            };
+        messages.Add(userMessage);
+
+        var history = messages.Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content)).ToList();
+
+        var response = await ChatClient.GetResponseAsync(history);
+
+        var aiMessage = new Message
+            {
+                Role = "assistant",
+                Content = response.ToString(),
+                ModelUsed = "openai/gpt-4o-mini",
+                InputTokens = response.Usage?.InputTokenCount is long i ? (int)i : null,
+                OutputTokens = response.Usage?.OutputTokenCount is long o ? (int)o : null
+            };
+            messages.Add(aiMessage);
+            userInput = string.Empty;
+
+    }
+}
