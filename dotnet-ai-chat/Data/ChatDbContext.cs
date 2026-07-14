@@ -10,12 +10,12 @@ namespace dotnet_ai_chat.Data
 {
     public  class ChatDbContext : DbContext
     {
-        DbSet<Conversation> conversations => Set<Conversation>();
-        DbSet<Message> messages => Set<Message>();
+        public DbSet<Conversation> conversations => Set<Conversation>();
+        public DbSet<Message> messages => Set<Message>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite("DataSource=chat.db");
+           optionsBuilder.UseSqlite($"Data Source={Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "chat.db")}");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
