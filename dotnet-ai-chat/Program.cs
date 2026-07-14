@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using OpenAI;
 using System.ClientModel;
 using dotnet_ai_chat;
-using dotnet_ai_chat.Data;
-using dotnet_ai_chat.Models;
+using DotnetAiChat.Core.Data;
+using DotnetAiChat.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 IConfigurationRoot config = new ConfigurationBuilder().AddUserSecrets<Program>().Build();

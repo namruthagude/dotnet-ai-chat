@@ -3,7 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using dotnet_ai_chat.Data;
+using DotnetAiChat.Core.Data;
 
 #nullable disable
 

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace dotnet_ai_chat.Models
+namespace DotnetAiChat.Core.Models
 {
     public class Message
     {

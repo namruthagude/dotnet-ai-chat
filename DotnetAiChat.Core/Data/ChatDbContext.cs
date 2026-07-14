@@ -1,4 +1,4 @@
-﻿using dotnet_ai_chat.Models;
+﻿using DotnetAiChat.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace dotnet_ai_chat.Data
+namespace DotnetAiChat.Core.Data
 {
     public  class ChatDbContext : DbContext
     {
