@@ -5,6 +5,7 @@ using System.ClientModel;
 using dotnet_ai_chat;
 using dotnet_ai_chat.Data;
 using dotnet_ai_chat.Models;
+using Microsoft.EntityFrameworkCore;
 
 IConfigurationRoot config = new ConfigurationBuilder().AddUserSecrets<Program>().Build();
 var credential = new ApiKeyCredential(config["GitHubModels:Token"]) ?? throw new InvalidDataException();
@@ -19,18 +20,34 @@ IChatClient chatClient =
 
 using var db = new ChatDbContext();
 
-var conversation = new Conversation { Title = "New Chat" };
-db.conversations.Add(conversation);
-try
+//Resuming recent conversation if it does exist creating new one
+Conversation? conversation = await db.conversations
+    .Include(c => c.Messages)
+    .OrderByDescending(c => c.UpdatedAt)
+    .FirstOrDefaultAsync();
+List<ChatMessage> history = new List<ChatMessage>();
+if(conversation != null)
 {
-    await db.SaveChangesAsync();
+    //looping through every message and adding to history as well as displaying them
+    Console.WriteLine($"Resuming Conversation : {conversation.Title} ({conversation.Title})");
+    foreach(var message in conversation.Messages.OrderBy(m => m.Created))
+    {
+        var role = message.Role == "user" ? ChatRole.User : ChatRole.Assistant;
+        history.Add(new ChatMessage(role, message.Content));
+
+        var color = message.Role == "user" ? ConsoleColor.Cyan : ConsoleColor.Green;
+        var chatMessage = message.Role == "user" ? "You >>> " : "AI >>> ";
+        chatMessage += message.Content+"\n";
+        WriteColored(chatMessage, color);
+    }
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine("ERROR: " + ex.Message);
-    if (ex.InnerException != null)
-        Console.WriteLine("INNER: " + ex.InnerException.Message);
+    StartNewConversation(db);
 }
+
+
+
 
 Console.WriteLine($"Started new conversation {conversation.Id}");
 
@@ -38,7 +55,6 @@ Console.ForegroundColor = ConsoleColor.White;
 Console.WriteLine("Chat Started. Type 'exit' to quit \n");
 long totalInput = 0;
 long totalOutput = 0;
-List<ChatMessage> history = new List<ChatMessage>();
 while (true)
 {
     string text = "\nYou >>> ";
@@ -46,6 +62,14 @@ while (true)
     string prompt = Console.ReadLine();
 
     if (prompt.ToLower() == "exit") return;
+
+    if(prompt.ToLower() == "new")
+    {
+        StartNewConversation(db);
+        history.Clear();
+        Console.WriteLine($"\n Started New Conversation: {conversation.Id}");
+        continue;
+    }
 
     history.Add(new ChatMessage(ChatRole.User, prompt));
 
@@ -100,12 +124,27 @@ while (true)
     }
 
 
-    static void WriteColored(string message, ConsoleColor color)
-    {
-        Console.ResetColor();
-        Console.ForegroundColor = color;
-        Console.Write(message);
+    
+}
 
+static void WriteColored(string message, ConsoleColor color)
+{
+    Console.ResetColor();
+    Console.ForegroundColor = color;
+    Console.Write(message);
+
+}
+
+async void StartNewConversation(ChatDbContext db)
+{
+    conversation = new Conversation { Title = "New Chat" };
+    db.conversations.Add(conversation);
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (Exception ex) {
+        Console.WriteLine($"Error occured while saving conversation data {ex.Message}");
     }
 }
 
