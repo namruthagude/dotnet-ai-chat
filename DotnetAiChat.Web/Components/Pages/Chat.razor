@@ -6,7 +6,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IChatClient ChatClient
 @inject ChatDbContext Db
-<h3>AI CHat</h3>
+<h3>AI Chat</h3>
 
 <div>
     @foreach (var msg in messages)
@@ -18,7 +18,36 @@
 <button @onclick = "SendMessage">Send</button>
 @code{
     private List<Message> messages = new();
+    private Conversation? conversation;
     private string userInput = string.Empty;
+
+    protected override async Task OnInitializedAsync(){
+        conversation = await Db.conversations
+        .Include(c => c.Messages)
+        .OrderByDescending(c => c.UpdatedAt)
+        .FirstOrDefaultAsync();
+
+        if(conversation == null){
+            Console.WriteLine("New Conversation");
+            conversation = new Conversation
+                {
+                    Title = "New Chat"
+                };
+            Db.conversations.Add(conversation);
+            try{
+                await Db.SaveChangesAsync();
+            }
+            catch(Exception exp){
+                Console.WriteLine($"Can't save changes to database because {exp.Message}");
+            }
+
+        }
+        else{
+            Console.WriteLine("Retriving older conversation");
+
+            messages = conversation.Messages.OrderBy(m => m.Created).ToList();
+        }
+    }
 
     private async Task SendMessage(){
         //Logic
@@ -26,25 +55,43 @@
             return;
         var userMessage = new Message()
             {
+                ConversationId = conversation!.Id,
                 Role = "user",
                 Content = userInput
             };
         messages.Add(userMessage);
-
+        Db.messages.Add(userMessage);
         var history = messages.Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content)).ToList();
 
-        var response = await ChatClient.GetResponseAsync(history);
-
-        var aiMessage = new Message
-            {
-                Role = "assistant",
-                Content = response.ToString(),
-                ModelUsed = "openai/gpt-4o-mini",
-                InputTokens = response.Usage?.InputTokenCount is long i ? (int)i : null,
-                OutputTokens = response.Usage?.OutputTokenCount is long o ? (int)o : null
-            };
+        try{
+            var response = await ChatClient.GetResponseAsync(history);
+            var aiMessage = new Message
+                {
+                    ConversationId = conversation!.Id,
+                    Role = "assistant",
+                    Content = response.ToString(),
+                    ModelUsed = "openai/gpt-4o-mini",
+                    InputTokens = response.Usage?.InputTokenCount is long i ? (int)i : null,
+                    OutputTokens = response.Usage?.OutputTokenCount is long o ? (int)o : null
+                };
             messages.Add(aiMessage);
+            Db.messages.Add(aiMessage);
+            conversation.UpdatedAt = DateTime.UtcNow;
+
+            await Db.SaveChangesAsync();
             userInput = string.Empty;
 
+        }
+        catch(Exception exp){
+            Console.WriteLine($"Error in Getting Response {exp.Message}");
+        }
+
+
+       
+
+            
+
     }
+
+
 }

@@ -1,5 +1,6 @@
 ﻿using DotnetAiChat.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,16 @@ namespace DotnetAiChat.Core.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-           optionsBuilder.UseSqlite($"Data Source={Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "chat.db")}");
+            var dbPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DotNetAIChat",
+        "chat.db");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
+            optionsBuilder.UseSqlite(
+                $"Data Source={dbPath}",
+                b => b.MigrationsAssembly("dotnet-ai-chat"));
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
