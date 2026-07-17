@@ -1,12 +1,14 @@
 ﻿@page "/chat"
+@page "/chat/{ConversationId:guid}"
 @rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components
 @using DotnetAiChat.Core.Models
 @using DotnetAiChat.Core.Data
 @using Microsoft.Extensions.AI
 @using Microsoft.EntityFrameworkCore
 @inject IChatClient ChatClient
 @inject ChatDbContext Db
-<h3>AI Chat</h3>
+<h3>@conversation.Title</h3>
 
 <div>
     @foreach (var msg in messages)
@@ -17,6 +19,8 @@
 <input @bind = "userInput" placeholder = "type your message here" />
 <button @onclick = "SendMessage">Send</button>
 @code{
+    [Parameter]
+    public Guid? ConversationId { get; set; }
     private List<Message> messages = new();
     private Conversation? conversation;
     private string userInput = string.Empty;
