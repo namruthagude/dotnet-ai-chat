@@ -6,18 +6,28 @@
 @using DotnetAiChat.Core.Data
 @using Microsoft.Extensions.AI
 @using Microsoft.EntityFrameworkCore
+@using Markdig
 @inject IChatClient ChatClient
 @inject ChatDbContext Db
-<h3>@conversation.Title</h3>
+<div class="chat-container">
+    <h3>@conversation?.Title</h3>
 
-<div>
-    @foreach (var msg in messages)
-    {
-        <p><strong>@msg.Role:</strong> @msg.Content</p>
-    }
+    <div class="messages-area">
+        @foreach (var msg in messages)
+        {
+            <div class="message-row @(msg.Role == "user" ? "user-row" : "ai-row")">
+                <div class="message-bubble @(msg.Role == "user" ? "user-bubble" : "ai-bubble")">
+                    @((MarkupString)Markdown.ToHtml( msg.Content))
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="input-bar">
+        <input @bind="userInput" @bind:event="oninput" placeholder="type your message here" />
+        <button @onclick="SendMessage">Send</button>
+    </div>
 </div>
-<input @bind = "userInput" placeholder = "type your message here" />
-<button @onclick = "SendMessage">Send</button>
 @code{
     [Parameter]
     public Guid? ConversationId { get; set; }
@@ -25,34 +35,34 @@
     private Conversation? conversation;
     private string userInput = string.Empty;
 
-    protected override async Task OnInitializedAsync(){
-        conversation = await Db.conversations
-        .Include(c => c.Messages)
-        .OrderByDescending(c => c.UpdatedAt)
-        .FirstOrDefaultAsync();
-
-        if(conversation == null){
-            Console.WriteLine("New Conversation");
-            conversation = new Conversation
-                {
-                    Title = "New Chat"
-                };
-            Db.conversations.Add(conversation);
-            try{
-                await Db.SaveChangesAsync();
-            }
-            catch(Exception exp){
-                Console.WriteLine($"Can't save changes to database because {exp.Message}");
-            }
-
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ConversationId.HasValue)
+        {
+            conversation = await Db.conversations
+                .Include(c => c.Messages)
+                .FirstOrDefaultAsync(c => c.Id == ConversationId.Value);
         }
-        else{
-            Console.WriteLine("Retriving older conversation");
+        else
+        {
+            conversation = await Db.conversations
+                .Include(c => c.Messages)
+                .OrderByDescending(c => c.UpdatedAt)
+                .FirstOrDefaultAsync();
+        }
 
+        if (conversation is null)
+        {
+            conversation = new Conversation { Title = "New Chat" };
+            Db.conversations.Add(conversation);
+            await Db.SaveChangesAsync();
+            messages = new();
+        }
+        else
+        {
             messages = conversation.Messages.OrderBy(m => m.Created).ToList();
         }
     }
-
     private async Task SendMessage(){
         //Logic
         if (string.IsNullOrEmpty(userInput))
@@ -63,6 +73,10 @@
                 Role = "user",
                 Content = userInput
             };
+
+        if(conversation!.Title == "New Chat"){
+            conversation.Title = userInput.Length > 40 ? userInput.Substring(0, 40) : userInput;
+        }
         messages.Add(userMessage);
         Db.messages.Add(userMessage);
         var history = messages.Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content)).ToList();
@@ -99,3 +113,73 @@
 
 
 }
+
+<style>
+     .chat-container {
+         display: flex;
+         flex-direction: column;
+         height: 90vh; /* fills most of the viewport height */
+     }
+
+     .messages-area {
+         flex: 1; /* takes up all remaining space, pushing input-bar down */
+         overflow-y: auto; /* scrolls internally once messages exceed the space */
+         padding: 1rem;
+     }
+
+     .message-row {
+         display: flex;
+         margin-bottom: 0.75rem;
+     }
+
+     .user-row {
+         justify-content: flex-end; /* pushes bubble to the right */
+     }
+
+     .ai-row {
+         justify-content: flex-start; /* keeps bubble on the left */
+     }
+
+     .message-bubble {
+         max-width: 60%;
+         padding: 0.6rem 1rem;
+         border-radius: 1rem;
+         word-wrap: break-word;
+     }
+
+     .user-bubble {
+         background-color: #0d6efd;
+         color: white;
+         border-bottom-right-radius: 0.25rem; /* subtle "tail" effect */
+     }
+
+     .ai-bubble {
+         background-color: #e9ecef;
+         color: #212529;
+         border-bottom-left-radius: 0.25rem;
+     }
+
+     .input-bar {
+         display: flex;
+         gap: 0.5rem;
+         padding: 1rem;
+         border-top: 1px solid #dee2e6;
+     }
+
+         .input-bar input {
+             flex: 1; /* input takes all available width, button stays compact */
+             padding: 0.5rem 0.75rem;
+             border-radius: 0.5rem;
+             border: 1px solid #ced4da;
+         }
+
+         .input-bar button {
+             padding: 0.5rem 1.25rem;
+             border-radius: 0.5rem;
+             border: none;
+             background-color: #0d6efd;
+             color: white;
+             cursor: pointer;
+         }
+</style>>
+    
